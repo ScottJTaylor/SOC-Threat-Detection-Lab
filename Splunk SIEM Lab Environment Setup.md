@@ -41,7 +41,7 @@ A well-rounded Splunk home lab typically includes:
 
 ### 4.1 Created the VM
 1. In VMware Workstation Pro, clicked **Create a New Virtual Machine**
-2. Choose **Typical (recommended)** and selected my Ubuntu Server ISO
+2. Choose **Typical (recommended)** and selected my Rocky Server ISO
 3. Set:
    - Name: `Splunk-Server`
    - RAM: 4–8 GB
