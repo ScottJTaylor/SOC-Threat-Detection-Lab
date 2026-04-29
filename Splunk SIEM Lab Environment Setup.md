@@ -1,112 +1,259 @@
-# Setting Up a Splunk SIEM Home Lab Environment
+## 🔐 Setting Up a Splunk SIEM Home Lab Environment
 
-Workflow used when building my Splunk SIEM lab at home for learning, detection engineering, and security monitoring practice.
+My step-by-step to building a functional Splunk SIEM lab at home for learning, detection engineering, and security monitoring practice.
 
 ---
 
-## Phase 1 — Lab Architecture Plan
-
-A well-rounded Splunk home lab typically includes:
+## 🗺️ Phase 1 — Lab Architecture
 
 | Component | Role |
 |---|---|
-| Splunk Enterprise | Central SIEM / indexer / search head |
+| Splunk Enterprise (Ubuntu Server) | Central SIEM / indexer / search head |
 | Universal Forwarder | Ships logs from endpoints to Splunk |
-| Windows VM | Endpoint to generate Windows Event Logs |
-| Linux VM | Endpoint to generate syslog/auth logs |
-| Kali Linux | Attack simulation / red team actions |
+| Windows 11 | Endpoint used to generate Windows desktop event logs |
+| Windows Server 2025 | Endpoint used to generate Windows server event logs |
+| Ubuntu Linux | Endpoint used to generate syslog/auth logs |
+| Kali Linux | Used for attack simulation / red team actions |
 
 ---
 
-## Phase 2 — Install a Hypervisor
+## 🖥️ Phase 2 — Hypervisor Setup
 
-1. Downloaded and installed **VMware Workstation Pro**: https://www.vmware.com/products/desktop-hypervisor.html
-2. Created a **Host-Only Network Adapter** in VMware so my VMs can communicate internally:
-   - Opened VMware → Edit → Virtual Network Editor → Add Network
-   - Selected **Host-only** and note the subnet (e.g., `192.168.100.0/24`) — assigned IPs from this range
-   - Ensured **DHCP** is enabled on the host-only network for easy IP assignment
-3. Allocated resources carefully — planned my VM count before spinning anything up
+1. **VMware Workstation Pro** was downloaded and installed from: https://www.vmware.com/products/desktop-hypervisor.html
+   - A Broadcom account was created to access the free personal use download
+2. A **Host-Only Network Adapter** was created in VMware so VMs could communicate internally:
+   - VMware → Edit → Virtual Network Editor → Add Network was opened
+   - **Host-only** was selected and the subnet `192.168.100.0/24` was noted
+   - **DHCP** was enabled on the host-only network for easy IP assignment
+3. Resources were allocated carefully before any VMs were spun up
 
 ---
 
-## Phase 3 — Downloaded Splunk Enterprise
+## 📦 Phase 3 — Splunk Enterprise Was Downloaded
 
-1. Accessed https://www.splunk.com and created my free account
+1. My free account was created at https://www.splunk.com
 2. Navigated to **Products → Free Trials & Downloads → Splunk Enterprise**
-3. Downloaded the installer for my Splunk server
+3. The Linux `.deb` installer was downloaded for the Splunk server on the host machine
 
 ---
 
-## Phase 4 — Set Up the Splunk Server VM
+## 🐧 Phase 4 — The Splunk Server VM Was Set Up
 
-### 4.1 Created the VM
-1. In VMware Workstation Pro, clicked **Create a New Virtual Machine**
-2. Choose **Typical (recommended)** and selected my Rocky Server ISO
-3. Set:
-   - Name: `Splunk-Server`
-   - RAM: 4–8 GB
-   - Disk: 60 GB (Store virtual disk as a single file for better performance)
-4. Before finishing, selected **Customize Hardware** and set the network adapter to **Host-only** adapter
-5. Completed the Ubuntu Server OS installation
+### 4.1 🔧 The SOC Slunk Server VM Was Created in VMware
 
-### 4.2 Install Splunk Enterprise (Linux)
+1. Start with **Create a New Virtual Machine**
+2. **Typical (recommended)** was chosen and the Ubuntu Server ISO was selected
+3. The following was configured:
+   - Name: `SOC-Splunk-Server`
+   - RAM: 8 GB
+   - Disk: 60 GB (stored as a single file for better performance)
+4. **Customize Hardware** was clicked and the network adapter was set to the **Host-only** adapter
+5. **Finish** was clicked — VMware booted the VM from the ISO automatically
+
+---
+
+### 4.2 🛠️ Ubuntu Server Was Installed via the CLI
+
+#### Network Configuration
+- The installer attempted DHCP automatically on the Host-only adapter
+- Where DHCP succeeded, the assigned IP (`192.168.100.128`) was noted
+- The proxy address was left blank as the network did not require one
+
+#### Storage Configuration
+- **Use an entire disk** was selected
+- The 60 GB VMware virtual disk was confirmed as the target
+- LVM was left enabled (default) to allow easy disk expansion later
+
+#### SSH Setup
+- **Install OpenSSH server** was checked using Space
+- This allowed SSH access from the host machine, eliminating the need to use the VMware console window going forward
+
+#### Featured Snaps
+- All optional snaps were skipped as they are not needed
+
+#### Installation
+- The installer copied files and configured the system
+- **Reboot Now** was selected upon completion
+
+---
+
+### 4.3 🔄 First Boot & Post-Install CLI Configuration
+
+#### System Was Updated
+The system was updated before anything else was installed:
 ```bash
-# Moved the installer to /opt
-sudo mv splunk-*.deb /opt/
-
-# Installed
-sudo dpkg -i /opt/splunk-*.deb
-
-# Started Splunk and accept the license
-sudo /opt/splunk/bin/splunk start --accept-license
-
-# Enabled Splunk to start on boot
-sudo /opt/splunk/bin/splunk enable boot-start
+sudo apt update && sudo apt upgrade -y
 ```
 
-### 4.3 Access the Splunk Web Interface
-1. From my host machine, navigated to: `http://<splunk-server-ip>:8000`
-2. Logged in with the admin credentials you set during installation
-3. Confirmed the Splunk home dashboard loads successfully
+#### Static IP Was Configured
+A static IP was set to prevent Splunk's web address from changing between reboots.
+
+The network interface name was identified first:
+```bash
+ip a
+```
+The interface `ens33` was found showing the current IP.
+
+The Netplan configuration was edited:
+```bash
+sudo nano /etc/netplan/00-installer-config.yaml
+```
+
+The contents were replaced with the following (interface name and IP substituted accordingly):
+```yaml
+network:
+  version: 2
+  renderer: networkd
+  ethernets:
+    ens33:
+      dhcp4: no
+      addresses:
+        - 192.168.100.10/24
+      nameservers:
+        addresses: [8.8.8.8, 8.8.4.4]
+```
+
+The configuration was applied:
+```bash
+sudo netplan apply
+```
+
+The static IP was verified as active:
+```bash
+ip a show ens33
+```
+
+#### Firewall (UFW) Was Configured
+Only the ports Splunk required were opened:
+```bash
+# UFW was enabled
+sudo ufw enable
+
+# SSH was allowed to preserve remote access
+sudo ufw allow 22/tcp
+
+# Splunk Web UI port was opened
+sudo ufw allow 8000/tcp
+
+# Splunk forwarder data reception port was opened
+sudo ufw allow 9997/tcp
+
+# Splunk management port was opened
+sudo ufw allow 8089/tcp
+
+# Rules were confirmed as active
+sudo ufw status verbose
+```
+
+#### VMware Tools Were Installed
+```bash
+sudo apt install open-vm-tools -y
+```
+
+#### Connectivity from the Host Was Verified
+From the host machine, connectivity to the Splunk server was confirmed:
+```bash
+ping 192.168.100.10
+ssh [username]@192.168.100.10
+```
+
+Once SSH was working, the server was managed entirely from a terminal on the host machine — the VMware console window was no longer needed.
 
 ---
 
-## Phase 5 — Configure Splunk to Receive Data
+### 4.4 📥 Splunk Enterprise Was Installed
 
-### 5.1 Enabled a Receiving Port
-1. In Splunk Web → **Settings → Forwarding and Receiving**
-2. Clicked **Configure Receiving → New Receiving Port**
-3. Set port to **9997** (standard Splunk forwarder port)
-4. Saved
+**Transferred from the host machine via SCP:**
+```bash
+# This was run on the HOST machine, not the VM
+scp ~/Downloads/splunk-*.deb [username]@192.168.100.10:/tmp/
+```
 
-### 5.2 Create Indexes for My Log Sources
-Indexes organized data by source type:
+#### Splunk Was Installed and Configured
+```bash
+# The package was installed
+sudo dpkg -i /tmp/splunk-*.deb
 
-1. Under **Settings → Indexes → New Index**
-2. Created the following (one at a time):
+# Navigated to Splunk's binary directory
+cd /opt/splunk/bin
+
+# Splunk was started for the first time and the license was accepted
+# An admin username and password were created at this prompt
+sudo ./splunk start --accept-license
+
+# Splunk was enabled to start automatically on system boot
+sudo ./splunk enable boot-start -user [usename]
+```
+
+#### Splunk Was Verified as Running
+```bash
+sudo /opt/splunk/bin/splunk status
+```
+
+Expected output:
+```
+splunkd is running (PID: XXXXX).
+splunk helpers are running (PIDs: XXXXX).
+```
+
+The listening ports were confirmed:
+```bash
+sudo ss -tlnp | grep splunk
+```
+
+Ports `8000`, `8089`, and `9997` were confirmed as listed.
+
+---
+
+### 4.5 🌐 Splunk Web Interface
+
+1. From the host machine browser was navigated to: `http://192.168.100.10:8000`
+2. Login was completed with the admin credentials set during the `splunk start` step
+3. The Splunk home dashboard was confirmed as loading successfully
+4. A **VMware Snapshot** was taken as a clean baseline before any configuration changes
+
+---
+
+## 📡 Phase 5 — Prep Splunk to Receive Data
+
+### 5.1 🔌 A Receiving Port Was Enabled
+
+1. Splunk Web → **Settings → Forwarding and Receiving** was opened
+2. **Configure Receiving → New Receiving Port** was clicked
+3. Port **9997** was set as the receiving port (standard Splunk forwarder port)
+4. The configuration was saved
+
+### 5.2 🗂️ Indexes Were Created for Log Sources
+
+Indexes were created to organize data by source type:
+
+1. **Settings → Indexes → New Index** was navigated to
+2. The following indexes were created one at a time:
    - `windows_logs` — for Windows Event Logs
    - `linux_logs` — for syslog / auth logs
-   - `network_logs` — for firewall / router logs (optional)
+   - `network_logs` — for firewall / router logs
 
 ---
 
-## Phase 6 — Set Up a Windows Endpoint VM
+## 🪟 Phase 6 — A Windows 11 Endpoint VM Was Set Up
 
-### 6.1 Created the Windows VM
-1. Downloaded a Windows 10/11 evaluation ISO from Microsoft
-2. In VMware Workstation Pro, clicked **Create a New Virtual Machine**:
-   - Name: `Win10-Endpoint`
+### 6.1 🔧 The Windows 11 VM Was Created
+
+1. A free Windows 10/11 evaluation ISO was downloaded from Microsoft
+2. In VMware **Create a New Virtual Machine** was clicked:
+   - Name: `Win11-SOCLAB`
    - RAM: 4 GB
    - Disk: 40 GB
-3. Under **Customize Hardware**, set the network adapter to my **Host-only** adapter
-4. Installed VMware Tools after Windows is up
+3. Under **Customize Hardware**, the network adapter was set to the **Host-only** adapter
+4. VMware Tools were installed after Windows was up
 
-### 6.2 Enable Windows Audit Policies
-Increases log verbosity to have events to analyze:
+### 6.2 📋 Windows Audit Policies Were Enabled
 
-1. Opened **Group Policy Editor** (`gpedit.msc`)
-2. Navigated to: `Computer Configuration → Windows Settings → Security Settings → Advanced Audit Policy Configuration`
-3. Enabled (Success + Failure) for:
+Log verbosity was increased to ensure useful events were available for analysis:
+
+1. **Group Policy Editor** (`gpedit.msc`) was opened with the **Run** tool
+2. The following path was navigated to: `Computer Configuration → Windows Settings → Security Settings → Advanced Audit Policy Configuration`
+3. Success + Failure was enabled for:
    - Account Logon
    - Account Management
    - Logon/Logoff
@@ -114,31 +261,30 @@ Increases log verbosity to have events to analyze:
    - Process Creation
    - Privilege Use
 
-### 6.3 Enabled Sysmon
-Sysmon dramatically improves process, network, and file event visibility:
+### 6.3 🔍 Sysmon Was Installed using PowerShell
 
 ```powershell
-# Download Sysmon from Microsoft Sysinternals
-# Download SwiftOnSecurity's config (my choice for a baseline)
+# Sysmon was downloaded from Microsoft Sysinternals
+# SwiftOnSecurity's config was downloaded as a baseline
 
-# Install with config
+# Sysmon was installed with the config
 .\Sysmon64.exe -accepteula -i sysmonconfig.xml
 ```
 
 ---
 
-## Phase 7 — Install the Splunk Universal Forwarder
+## 📤 Phase 7 — The Splunk Universal Forwarder Was Installed
 
-Install this on every endpoint you want to ship logs from.
+The forwarder was installed on every endpoint logs were to be shipped from.
 
-### On the Windows endpoint VM:
-1. Downloaded the Universal Forwarder from: https://www.splunk.com/en_us/download/universal-forwarder.html
-2. Ran the `.msi` installer
+### On Windows:
+1. The Universal Forwarder was downloaded from: https://www.splunk.com/en_us/download/universal-forwarder.html
+2. The `.msi` installer was run
 3. During setup:
-   - Set the **Deployment Server** (optional, skip for now)
-   - Set **Receiving Indexer** to your Splunk server IP on port `9997`
+   - The **Deployment Server** field was skipped
+   - The **Receiving Indexer** was set to the Splunk server IP on port `9997`
 
-### On the Linux endpoint VM:
+### On Linux:
 ```bash
 sudo dpkg -i splunkforwarder-*.deb
 sudo /opt/splunkforwarder/bin/splunk start --accept-license
@@ -148,10 +294,11 @@ sudo /opt/splunkforwarder/bin/splunk enable boot-start
 
 ---
 
-## Phase 8 — Configure Inputs on the Forwarder
-Tell the forwarder *what* to collect and *where* to send it.
+## 📝 Phase 8 — Inputs Were Configured on the Forwarder
 
-### On the Windows endpoint VM — Edited `inputs.conf`:
+The forwarder was told what to collect and where to send it.
+
+### On Windows — `inputs.conf` Was Edited:
 File location: `C:\Program Files\SplunkUniversalForwarder\etc\system\local\inputs.conf`
 
 ```ini
@@ -172,12 +319,12 @@ index = windows_logs
 disabled = 0
 ```
 
-Restart the forwarder after editing:
+The forwarder was restarted after editing:
 ```powershell
 Restart-Service SplunkForwarder
 ```
 
-### On the Linux enpoint VM — Edited `inputs.conf`:
+### On Linux — `inputs.conf` Was Edited:
 File location: `/opt/splunkforwarder/etc/system/local/inputs.conf`
 
 ```ini
@@ -192,10 +339,10 @@ sourcetype = syslog
 
 ---
 
-## Phase 9 — Verify Data Is Flowing into Splunk
+## ✅ Phase 9 — Data Flow into Splunk Was Verified
 
-1. In Splunk Web, traveresed to **Search & Reporting**
-2. Run a basic search to confirm events are arriving:
+1. **Search & Reporting** was opened in Splunk Web
+2. Basic searches were run to confirm events were arriving:
 
 ```spl
 index=windows_logs | head 50
@@ -205,17 +352,17 @@ index=windows_logs | head 50
 index=linux_logs | head 50
 ```
 
-3. I had no results, so I checked:
-   - Forwarder service is running on the endpoint
-   - Firewall on the Splunk server allows port 9997
-   - Indexes were created correctly
-   - `outputs.conf` on the forwarder points to the correct server/port
+3. Where no results were returned, the following were checked:
+   - Forwarder service was confirmed as running on the endpoint
+   - Port 9997 was confirmed as open on the Splunk server firewall
+   - Indexes were confirmed as created correctly
+   - `outputs.conf` on the forwarder was confirmed as pointing to the correct server/port
 
 ---
 
-## Phase 10 — Build Useful Dashboards & Alerts
+## 📊 Phase 10 — Dashboards & Alerts Were Built
 
-### Starter Searches I Saved
+### Starter Searches Were Saved
 
 **Failed Logon Attempts (Event ID 4625):**
 ```spl
@@ -236,38 +383,38 @@ index=windows_logs EventCode=4688 New_Process_Name="*powershell*"
 | table _time, Account_Name, New_Process_Name, Process_Command_Line
 ```
 
-### Created a Dashboard
-1. Ran one of the searches above
-2. Clicked **Save As → Dashboard Panel**
-3. Created a new dashboard called `Home Lab SOC`
-4. Added multiple panels for a consolidated view
+### A Dashboard Was Created
+1. One of the searches above was run
+2. **Save As → Dashboard Panel** was clicked
+3. A new dashboard was created called `Home Lab SOC`
+4. Multiple panels were added for a consolidated view
 
-### Set Up an Alert
-1. Ran a search (I chose failed logons)
-2. Clicked **Save As → Alert**
-3. Configured:
+### An Alert Was Set Up
+1. A search was run (e.g., failed logons)
+2. **Save As → Alert** was clicked
+3. The following was configured:
    - Trigger: Number of results > 5 within 15 minutes
    - Action: Log to Splunk (or email if configured)
 
 ---
 
-## Phase 11 — Add MITRE ATT&CK Coverage
+## 🎯 Phase 11 — MITRE ATT&CK Coverage Was Added
 
-### Installed Splunk Security Essentials
-1. In Splunk Web → **Apps → Find More Apps**
-2. Searched for **Splunk Security Essentials**
-3. Installed and configure it
-4. This mapped my data to MITRE ATT&CK techniques and suggests detections
+### Splunk Security Essentials Was Installed
+1. Splunk Web → **Apps → Find More Apps** was opened
+2. **Splunk Security Essentials** was searched for
+3. The app was installed and configured
+4. Data was mapped to MITRE ATT&CK techniques and detections were suggested
 
-### Installed the MITRE ATT&CK App for Splunk
-- Also available in the Splunk App catalog
-- Provides a full ATT&CK matrix overlay showing which techniques you're covering
+### The MITRE ATT&CK App for Splunk Was Installed
+- The app was found in the Splunk App catalog
+- A full ATT&CK matrix overlay was provided showing which techniques were being covered
 
 ---
 
-## Phase 12 — Simulate Attacks for Practice
+## 💥 Phase 12 — Attacks Were Simulated for Practice
 
-Use your Kali Linux VM to generate realistic events:
+A Kali Linux VM was used to generate realistic events:
 
 | Simulation | Tool |
 |---|---|
@@ -276,36 +423,36 @@ Use your Kali Linux VM to generate realistic events:
 | Mimikatz (Windows cred dump) | Invoke-Mimikatz in PowerShell |
 | Atomic Red Team | Framework of ATT&CK-mapped tests |
 
-**Atomic Red Team** is highly recommended for structured attack simulation:
+**Atomic Red Team** was used for structured attack simulation:
 ```powershell
-# Install (on Windows endpoint)
+# Installed on the Windows endpoint
 Install-Module -Name invoke-atomicredteam
 Import-Module invoke-atomicredteam
 
-# Run a specific ATT&CK technique (e.g., T1059 - Command Scripting)
+# A specific ATT&CK technique was run (e.g., T1059 - Command Scripting)
 Invoke-AtomicTest T1059.001
 ```
 
-Then search Splunk for the resulting logs and build detections around them.
+Splunk was then searched for the resulting logs and detections were built around them.
 
 ---
 
-## Troubleshooting I Implemetnted
+## 🔧 Troubleshooting seen during the setup
 
 | Issue | Check |
 |---|---|
-| No data in Splunk | Forwarder service running? Port 9997 open? Index exists? |
-| Forwarder won't connect | `outputs.conf` correct IP/port? Firewall rules? |
-| Missing Windows events | Audit policy enabled? Sysmon installed? |
-| Splunk won't start | Port 8000 in use? Check `/opt/splunk/var/log/splunk/splunkd.log` |
-| License warning | Stay under 500 MB/day; reduce monitored log sources |
+| No data in Splunk | Was the forwarder service running? Was port 9997 open? Did the index exist? |
+| Forwarder wouldn't connect | Was `outputs.conf` pointing to the correct IP/port? Were firewall rules correct? |
+| Missing Windows events | Was the audit policy enabled? Was Sysmon installed? |
+| Splunk wouldn't start | Was port 8000 in use? `/opt/splunk/var/log/splunk/splunkd.log` was checked |
+| License warning | Data was kept under 500 MB/day by reducing monitored log sources |
 
 ---
 
-## Learning Resources
+## 📚 Learning Resources
 
 - **Splunk Fundamentals 1** — Free official course at education.splunk.com
 - **Boss of the SOC (BOTS)** — Splunk's free CTF-style dataset for practice
-- **LetsDefend* — Has Splunk-specific rooms and SOC analyst paths
+- **LetsDefend** — Splunk-specific rooms and SOC analyst paths
 - **Splunk Docs** — docs.splunk.com (reference for SPL and configuration)
 - **SwiftOnSecurity Sysmon Config** — github.com/SwiftOnSecurity/sysmon-config
