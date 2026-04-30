@@ -270,6 +270,10 @@ LISTEN 0      4096       127.0.0.1:41353      0.0.0.0:*    users:(("splunk-spotl
 1. From the host machine browser was navigated to: `http://192.168.100.10:8000`
 2. Login was completed with the admin credentials set during the `splunk start` step
 3. The Splunk home dashboard was confirmed as loading successfully
+
+[image](https://github.com/user-attachments/assets/a488c2bb-4337-46be-ae52-c923385205e0")
+
+
 4. A **VMware Snapshot** was taken as a clean baseline before any configuration changes
 
 ---
