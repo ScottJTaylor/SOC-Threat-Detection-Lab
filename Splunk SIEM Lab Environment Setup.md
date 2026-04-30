@@ -56,7 +56,6 @@ My step-by-step to building a functional Splunk SIEM lab at home for learning, d
 
 #### Network Configuration
 - The installer attempted DHCP automatically on the Host-only adapter
-- Where DHCP succeeded, the assigned IP (`192.168.100.128`) was noted
 - The proxy address was left blank as the network did not require one
 
 #### Storage Configuration
@@ -152,9 +151,51 @@ sudo apt install open-vm-tools -y
 
 #### Connectivity from the Host Was Verified
 From the host machine, connectivity to the Splunk server was confirmed:
-```bash
-ping 192.168.100.10
-ssh [username]@192.168.100.10
+```
+
+PS C:\Users\Scootie> ping 192.168.100.10
+
+Pinging 192.168.100.10 with 32 bytes of data:
+Reply from 192.168.100.10: bytes=32 time<1ms TTL=64
+Reply from 192.168.100.10: bytes=32 time<1ms TTL=64
+Reply from 192.168.100.10: bytes=32 time=15ms TTL=64
+Reply from 192.168.100.10: bytes=32 time<1ms TTL=64
+
+Ping statistics for 192.168.100.10:
+    Packets: Sent = 4, Received = 4, Lost = 0 (0% loss),
+Approximate round trip times in milli-seconds:
+    Minimum = 0ms, Maximum = 15ms, Average = 3ms
+PS C:\Users\Scootie> ssh staylor@192.168.100.10
+staylor@192.168.100.10's password:
+Welcome to Ubuntu 26.04 LTS (GNU/Linux 7.0.0-14-generic x86_64)
+
+ * Documentation:  https://docs.ubuntu.com
+ * Management:     https://landscape.canonical.com
+ * Support:        https://ubuntu.com/pro
+
+ System information as of Wed Apr 29 08:48:49 PM UTC 2026
+
+  System load: 2.34               Memory usage: 25%   Processes:       310
+  Usage of /:  11.4% of 96.88GB   Swap usage:   0%    Users logged in: 0
+
+ * Strictly confined Kubernetes makes edge and IoT secure. Learn how MicroK8s
+   just raised the bar for easy, resilient and secure K8s cluster deployment.
+
+   https://ubuntu.com/engage/secure-kubernetes-at-the-edge
+
+Expanded Security Maintenance for Applications is not enabled.
+
+0 updates can be applied immediately.
+
+Enable ESM Apps to receive additional future security updates.
+See https://ubuntu.com/esm or run: sudo pro status
+
+
+
+
+Last login: Wed Apr 29 19:35:12 2026 from 192.168.100.1
+staylor@soc-splunk-server:~$
+
 ```
 
 Once SSH was working, the server was managed entirely from a terminal on the host machine — the VMware console window was no longer needed.
@@ -166,13 +207,16 @@ Once SSH was working, the server was managed entirely from a terminal on the hos
 **Transferred from the host machine via SCP:**
 ```bash
 # This was run on the HOST machine, not the VM
-scp ~/Downloads/splunk-*.deb [username]@192.168.100.10:/tmp/
+scp "X:\Home Labs\SOC Splunk Server\splunk-10.2.2-80b90d638de6-linux-amd64.deb" staylor@192.168.100.10:/tmp/
+
+<img width="1085" height="78" alt="image" src="https://github.com/user-attachments/assets/42666415-0de8-4cb5-8a32-4fe720825b0b" />
+
 ```
 
 #### Splunk Was Installed and Configured
 ```bash
 # The package was installed
-sudo dpkg -i /tmp/splunk-*.deb
+sudo dpkg -i /tmp/splunk--10.2.2-80b90d638de6-linux-amd64.deb
 
 # Navigated to Splunk's binary directory
 cd /opt/splunk/bin
@@ -181,28 +225,44 @@ cd /opt/splunk/bin
 # An admin username and password were created at this prompt
 sudo ./splunk start --accept-license
 
+# Splunk failed to auto-start for the first time
+Warning: cannot create "/opt/splunk/etc/licenses/download-trial"
+
+# Troubleshooting License Creation
+ls -la /opt/splunk (File ownership was wrong)
+
+
 # Splunk was enabled to start automatically on system boot
-sudo ./splunk enable boot-start -user [usename]
+sudo ./splunk enable boot-start -user staylor
 ```
 
 #### Splunk Was Verified as Running
 ```bash
 sudo /opt/splunk/bin/splunk status
-```
+splunkd is running (PID: 1403248).
+splunk helpers are running (PIDs: 1403253 1406463 1406468 1406671 1406726).
 
-Expected output:
-```
-splunkd is running (PID: XXXXX).
-splunk helpers are running (PIDs: XXXXX).
 ```
 
 The listening ports were confirmed:
 ```bash
 sudo ss -tlnp | grep splunk
+
 ```
 
-Ports `8000`, `8089`, and `9997` were confirmed as listed.
-
+```
+LISTEN 0      4096       127.0.0.1:40833      0.0.0.0:*    users:(("splunk-cmp-orch",pid=1408187,fd=4))                 
+LISTEN 0      4096       127.0.0.1:40397      0.0.0.0:*    users:(("splunk-spotligh",pid=1408750,fd=9))                 
+LISTEN 0      4096       127.0.0.1:43017      0.0.0.0:*    users:(("splunk-postgres",pid=1407562,fd=3))                 
+LISTEN 0      4096       127.0.0.1:35007      0.0.0.0:*    users:(("splunk-supervis",pid=1406468,fd=4))                 
+LISTEN 0      4096       127.0.0.1:43271      0.0.0.0:*    users:(("splunk-cmp-orch",pid=1408187,fd=14))                
+LISTEN 0      4096       127.0.0.1:35265      0.0.0.0:*    users:(("splunk-supervis",pid=1406468,fd=10))                
+LISTEN 0      128          0.0.0.0:8089       0.0.0.0:*    users:(("splunkd",pid=1403248,fd=5))                         
+LISTEN 0      4096       127.0.0.1:5435       0.0.0.0:*    users:(("splunk-postgres",pid=1407562,fd=11))                
+LISTEN 0      128          0.0.0.0:8000       0.0.0.0:*    users:(("splunkd",pid=1403248,fd=194))                       
+LISTEN 0      4096       127.0.0.1:45825      0.0.0.0:*    users:(("splunk-cmp-orch",pid=1408187,fd=15))                
+LISTEN 0      4096       127.0.0.1:41353      0.0.0.0:*    users:(("splunk-spotligh",pid=1408750,fd=4))  
+```
 ---
 
 ### 4.5 🌐 Splunk Web Interface
