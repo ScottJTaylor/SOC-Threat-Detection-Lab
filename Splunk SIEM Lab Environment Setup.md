@@ -151,52 +151,8 @@ sudo apt install open-vm-tools -y
 
 #### Connectivity from the Host Was Verified
 From the host machine, connectivity to the Splunk server was confirmed:
-```
 
-PS C:\Users\Scootie> ping 192.168.100.10
-
-Pinging 192.168.100.10 with 32 bytes of data:
-Reply from 192.168.100.10: bytes=32 time<1ms TTL=64
-Reply from 192.168.100.10: bytes=32 time<1ms TTL=64
-Reply from 192.168.100.10: bytes=32 time=15ms TTL=64
-Reply from 192.168.100.10: bytes=32 time<1ms TTL=64
-
-Ping statistics for 192.168.100.10:
-    Packets: Sent = 4, Received = 4, Lost = 0 (0% loss),
-Approximate round trip times in milli-seconds:
-    Minimum = 0ms, Maximum = 15ms, Average = 3ms
-PS C:\Users\Scootie> ssh staylor@192.168.100.10
-staylor@192.168.100.10's password:
-Welcome to Ubuntu 26.04 LTS (GNU/Linux 7.0.0-14-generic x86_64)
-
- * Documentation:  https://docs.ubuntu.com
- * Management:     https://landscape.canonical.com
- * Support:        https://ubuntu.com/pro
-
- System information as of Wed Apr 29 08:48:49 PM UTC 2026
-
-  System load: 2.34               Memory usage: 25%   Processes:       310
-  Usage of /:  11.4% of 96.88GB   Swap usage:   0%    Users logged in: 0
-
- * Strictly confined Kubernetes makes edge and IoT secure. Learn how MicroK8s
-   just raised the bar for easy, resilient and secure K8s cluster deployment.
-
-   https://ubuntu.com/engage/secure-kubernetes-at-the-edge
-
-Expanded Security Maintenance for Applications is not enabled.
-
-0 updates can be applied immediately.
-
-Enable ESM Apps to receive additional future security updates.
-See https://ubuntu.com/esm or run: sudo pro status
-
-
-
-
-Last login: Wed Apr 29 19:35:12 2026 from 192.168.100.1
-staylor@soc-splunk-server:~$
-
-```
+![Host Machine Connection](https://github.com/ScottJTaylor/Lab-Screenshots/blob/main/Screenshot%202026-04-29%20154927.png)
 
 Once SSH was working, the server was managed entirely from a terminal on the host machine — the VMware console window was no longer needed.
 
@@ -208,8 +164,6 @@ Once SSH was working, the server was managed entirely from a terminal on the hos
 ```bash
 # This was run on the HOST machine, not the VM
 scp "X:\Home Labs\SOC Splunk Server\splunk-10.2.2-80b90d638de6-linux-amd64.deb" staylor@192.168.100.10:/tmp/
-
-<img width="1085" height="78" alt="image" src="https://github.com/user-attachments/assets/42666415-0de8-4cb5-8a32-4fe720825b0b" />
 
 ```
 
@@ -268,10 +222,13 @@ LISTEN 0      4096       127.0.0.1:41353      0.0.0.0:*    users:(("splunk-spotl
 ### 4.5 🌐 Splunk Web Interface
 
 1. From the host machine browser was navigated to: `http://192.168.100.10:8000`
+
+![Splunk Login](https://github.com/ScottJTaylor/Lab-Screenshots/blob/main/Screenshot%202026-04-29%20230351.png)
+ 
 2. Login was completed with the admin credentials set during the `splunk start` step
 3. The Splunk home dashboard was confirmed as loading successfully
 
-[image](https://github.com/user-attachments/assets/a488c2bb-4337-46be-ae52-c923385205e0")
+![Splunk Dashboard](https://github.com/ScottJTaylor/Lab-Screenshots/blob/main/Screenshot%202026-04-29%20230559.png)
 
 
 4. A **VMware Snapshot** was taken as a clean baseline before any configuration changes
