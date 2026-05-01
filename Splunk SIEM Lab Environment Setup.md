@@ -258,16 +258,31 @@ Indexes were created to organize data by source type:
 
 ## 🪟 Phase 6 — A Windows 11 Endpoint VM Was Set Up
 
-### 6.1 🔧 The Windows 11 VM Was Created
+### 6.1 🔧 The Windows 11 VM Was Created in VMware
 
-1. A free Windows 10/11 evaluation ISO was downloaded from Microsoft
+1. A free Windows 11 evaluation ISO was downloaded from Microsoft
 2. In VMware **Create a New Virtual Machine** was clicked:
    - Name: `Win11-SOCLAB`
    - RAM: 4 GB
    - Disk: 40 GB
 3. Under **Customize Hardware**, the network adapter was set to the **Host-only** adapter
-4. VMware Tools were installed after Windows was up
+4. 🔧 Troubleshooting stalled setup
 
+    **Let's connect to a network - Ethenet not connected**
+      - Restarted the setup and enabled the virtual keyboard
+      - On the network step, pressed **Alt+F10** to brind up the command prompt
+         ```bash
+         OOBE\NOPASSNRO
+         ```
+      - Windows automatically restarted with the option to skip the network setup
+     
+         ![Network Bypass](https://windowsreport.com/wp-content/uploads/2023/10/lets-connect.png)
+   
+      - Able to finish the setup in limited mode
+5. Local user account created
+6. VMware Tools were installed after Windows was up
+
+<!--
 ### 6.2 📋 Windows Audit Policies Were Enabled
 
 Log verbosity was increased to ensure useful events were available for analysis:
@@ -477,3 +492,4 @@ Splunk was then searched for the resulting logs and detections were built around
 - **LetsDefend** — Splunk-specific rooms and SOC analyst paths
 - **Splunk Docs** — docs.splunk.com (reference for SPL and configuration)
 - **SwiftOnSecurity Sysmon Config** — github.com/SwiftOnSecurity/sysmon-config
+-->
