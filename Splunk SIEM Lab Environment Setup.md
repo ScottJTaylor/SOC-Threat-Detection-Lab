@@ -276,7 +276,7 @@ Indexes were created to organize data by source type:
          ```
       - Windows automatically restarted with the option to skip the network setup
      
-         ![Network Bypass](https://windowsreport.com/wp-content/uploads/2023/10/lets-connect.png)
+         ![Network Connection Bypass](https://windowsreport.com/wp-content/uploads/2023/10/lets-connect.png)
    
       - Able to finish the setup in limited mode
 5. Local user account created
