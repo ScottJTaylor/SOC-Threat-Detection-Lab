@@ -282,7 +282,7 @@ Indexes were created to organize data by source type:
 5. Local user account created
 6. VMware Tools were installed after Windows was up
 
-<!--
+
 ### 6.2 📋 Windows Audit Policies Were Enabled
 
 Log verbosity was increased to ensure useful events were available for analysis:
@@ -292,20 +292,24 @@ Log verbosity was increased to ensure useful events were available for analysis:
 3. Success + Failure was enabled for:
    - Account Logon
    - Account Management
+   - Detailed Tracking
+   - Domain Service Access
    - Logon/Logoff
    - Object Access
+   - Policy Change
    - Process Creation
    - Privilege Use
+   - System
 
-### 6.3 🔍 Sysmon Was Installed using PowerShell
+![Group Policy Editor](https://github.com/ScottJTaylor/Lab-Screenshots/blob/main/Screenshot%202026-05-02%20062604.png)
 
-```powershell
-# Sysmon was downloaded from Microsoft Sysinternals
-# SwiftOnSecurity's config was downloaded as a baseline
+### 6.3 🔍 Sysmon Was Installed using Command Prompt
 
-# Sysmon was installed with the config
-.\Sysmon64.exe -accepteula -i sysmonconfig.xml
-```
+1. Sysmon was downloaded from Microsoft Sysinternals
+2. SwiftOnSecurity's config was downloaded as a baseline
+3. Sysmon was installed with the config
+
+![Windows Sysmon Install](https://github.com/ScottJTaylor/Lab-Screenshots/blob/main/Screenshot%202026-05-02%20074827.png)
 
 ---
 
@@ -313,12 +317,14 @@ Log verbosity was increased to ensure useful events were available for analysis:
 
 The forwarder was installed on every endpoint logs were to be shipped from.
 
-### On Windows:
+### On Windows 11:
 1. The Universal Forwarder was downloaded from: https://www.splunk.com/en_us/download/universal-forwarder.html
 2. The `.msi` installer was run
 3. During setup:
    - The **Deployment Server** field was skipped
    - The **Receiving Indexer** was set to the Splunk server IP on port `9997`
+
+<!--
 
 ### On Linux:
 ```bash
